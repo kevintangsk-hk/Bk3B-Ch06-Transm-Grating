@@ -1,0 +1,524 @@
+<!DOCTYPE html><html lang="en"><head><meta name="x-poe-datastore-behavior" content="local_only"><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Magnified Diffraction Geometry</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --panel-bg: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+            --maxima: #10b981;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            height: 100%;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 0;
+        }
+        .header h1 {
+            margin: 0 0 5px 0;
+            font-size: 1.4em;
+        }
+        .header p {
+            margin: 0;
+            font-size: 0.9em;
+            color: #475569;
+        }
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9em;
+        }
+        .readout-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            background: #f1f5f9;
+            padding: 5px 15px;
+            border-radius: 8px;
+            border: 1px solid #cbd5e1;
+            min-width: 180px;
+            justify-content: center;
+        }
+        input[type=range] {
+            width: 160px;
+            cursor: pointer;
+            margin: 0;
+        }
+        .val-display {
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .n-display {
+            font-weight: bold;
+            color: #b45309;
+            font-size: 1.1em;
+            transition: color 0.2s;
+        }
+        .formula {
+            font-family: "Times New Roman", Times, serif;
+            font-style: italic;
+            color: #475569;
+            font-size: 1em;
+        }
+        
+        /* Toast Notification Styles */
+        .fringe-notification {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: var(--maxima);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 0.95em;
+            box-shadow: 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            z-index: 1000;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .fringe-notification.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .diagram-panel {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .diagram-container {
+            position: relative;
+            width: 100%;
+            flex-grow: 1;
+            min-height: 300px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            overflow: hidden;
+            cursor: grab;
+            touch-action: none;
+        }
+        .diagram-container:active {
+            cursor: grabbing;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+            pointer-events: none;
+        }
+        h2 {
+            margin: 0 0 5px 0;
+            font-size: 1.1em;
+            color: #334155;
+            text-align: center;
+        }
+        .instruction {
+            text-align: center;
+            font-size: 0.85em;
+            color: #64748b;
+            margin-bottom: 8px;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 8px;
+            font-size: 0.85em;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 5px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>Magnified Interference Details</h1>
+            <p>Zoomed in to 2 slits to clearly observe the path difference.</p>
+        </div>
+
+        <div class="panel controls">
+            <div class="control-group">
+                <label for="lambdaSlider">Wavelength λ: <span id="lambdaVal" class="val-display">550</span> nm</label>
+                <input type="range" id="lambdaSlider" min="400" max="700" value="550" step="1">
+            </div>
+            <div class="control-group">
+                <label for="dSlider">Separation d: <span id="dVal" class="val-display">2000</span> nm</label>
+                <input type="range" id="dSlider" min="1000" max="4000" value="2000" step="50">
+            </div>
+            <div class="control-group">
+                <label for="thetaSlider">Angle θ: <span id="thetaVal" class="val-display">16.0</span>°</label>
+                <input type="range" id="thetaSlider" min="0" max="60" value="16.0" step="0.1">
+            </div>
+            <div class="readout-group">
+                <label>Order (n): <span id="nVal" class="n-display">1.00</span></label>
+                <div class="formula">n = d sin(θ) / λ</div>
+            </div>
+        </div>
+
+        <div class="panel diagram-panel">
+            <h2>Wave Segments (Drawn to Scale)</h2>
+            <div class="instruction">💡 Drag the angle slider or the diagram to exactly <strong>n = 1.00</strong> or <strong>n = 2.00</strong>.</div>
+            <div class="diagram-container" id="diagramContainer">
+                <svg id="gratingSvg" viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid meet"></svg>
+            </div>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ef4444;"></div>
+                    <span>1 Wavelength (Red)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #22c55e;"></div>
+                    <span>1 Wavelength (Green)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #3b82f6;"></div>
+                    <span>1 Wavelength (Blue)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification in Bottom Right -->
+    <div id="fringeNotification" class="fringe-notification">
+        ✨ Bright fringe is formed!
+    </div>
+
+    <script>
+        // Physics Constants & State
+        const N = 2;      
+        let lambda = 550; 
+        let d_nm = 2000;  
+        let thetaDeg = 16.0; 
+
+        // DOM Elements
+        const lambdaSlider = document.getElementById('lambdaSlider');
+        const dSlider = document.getElementById('dSlider');
+        const thetaSlider = document.getElementById('thetaSlider');
+        const lambdaVal = document.getElementById('lambdaVal');
+        const dVal = document.getElementById('dVal');
+        const thetaVal = document.getElementById('thetaVal');
+        const nVal = document.getElementById('nVal');
+        const fringeNotification = document.getElementById('fringeNotification');
+        const gratingSvg = document.getElementById('gratingSvg');
+        const diagramContainer = document.getElementById('diagramContainer');
+
+        // Geometry Constants - MAGNIFIED
+        const cx = 250; 
+        const cy = 300;
+        const slitSpacing = 300; 
+        const slitWidth = 16;
+        const startY = cy - (N - 1) * slitSpacing / 2;
+        const midY = cy; 
+
+        function updateSimulation() {
+            lambda = parseFloat(lambdaSlider.value);
+            d_nm = parseFloat(dSlider.value);
+            let rawThetaDeg = parseFloat(thetaSlider.value);
+            
+            // Soft Magnetic Snapping Logic for the Slider
+            let rawThetaRad = rawThetaDeg * Math.PI / 180;
+            let rawN = (d_nm * Math.sin(rawThetaRad)) / lambda;
+            let roundedN = Math.round(rawN);
+            
+            thetaDeg = rawThetaDeg; // Default to raw value
+            
+            // If we are close to an integer order (n), snap the internal angle
+            if (Math.abs(rawN - roundedN) < 0.12) {
+                let snapSinTheta = (roundedN * lambda) / d_nm;
+                if (Math.abs(snapSinTheta) <= 1) {
+                    thetaDeg = Math.asin(snapSinTheta) * 180 / Math.PI;
+                }
+            }
+
+            lambdaVal.innerText = lambda;
+            dVal.innerText = d_nm;
+            thetaVal.innerText = thetaDeg.toFixed(2); // Show 2 decimals to highlight exact snapping
+            
+            const thetaRad = thetaDeg * Math.PI / 180;
+            const currentN = (d_nm * Math.sin(thetaRad)) / lambda;
+            nVal.innerText = currentN.toFixed(2);
+
+            // Check if n is an integer (within a small tolerance for snapping)
+            if (Math.abs(currentN - Math.round(currentN)) < 0.05) {
+                nVal.style.color = "#10b981"; 
+                fringeNotification.classList.add('visible');
+            } else {
+                nVal.style.color = "#b45309"; 
+                fringeNotification.classList.remove('visible');
+            }
+
+            drawGrating(thetaRad);
+        }
+
+        function drawGrating(thetaRad) {
+            let svgContent = '';
+
+            svgContent += `
+                <defs>
+                    <clipPath id="rightSideClip">
+                        <rect x="${cx}" y="-1000" width="2000" height="3000" />
+                    </clipPath>
+                </defs>
+            `;
+            
+            const lambdaPx = lambda * (slitSpacing / d_nm);
+            const dashPattern = `${lambdaPx}, ${2 * lambdaPx}`;
+
+            const colorRed = "#ef4444";
+            const colorGreen = "#22c55e";
+            const colorBlue = "#3b82f6";
+            const rayThickness = 8; 
+            const arrowColor = "#334155"; 
+
+            // 1. Draw incoming waves and outgoing rays
+            for (let i = 0; i < N; i++) {
+                const y = startY + i * slitSpacing;
+                
+                // Incoming ray
+                const inXStart = cx - 800;
+                svgContent += `<line x1="${cx}" y1="${y}" x2="${inXStart}" y2="${y}" stroke="${colorRed}" stroke-width="${rayThickness}" stroke-dasharray="${dashPattern}" stroke-dashoffset="0" opacity="0.3" />`;
+                svgContent += `<line x1="${cx}" y1="${y}" x2="${inXStart}" y2="${y}" stroke="${colorGreen}" stroke-width="${rayThickness}" stroke-dasharray="${dashPattern}" stroke-dashoffset="${-lambdaPx}" opacity="0.3" />`;
+                svgContent += `<line x1="${cx}" y1="${y}" x2="${inXStart}" y2="${y}" stroke="${colorBlue}" stroke-width="${rayThickness}" stroke-dasharray="${dashPattern}" stroke-dashoffset="${-2 * lambdaPx}" opacity="0.3" />`;
+                
+                // Incoming Arrow
+                const inArrowX = cx - 150;
+                svgContent += `<polygon points="0,-8 16,0 0,8" fill="${arrowColor}" transform="translate(${inArrowX}, ${y})" opacity="0.8" />`;
+
+                // Outgoing ray (Subtracting Y to make UP positive)
+                const outX = cx + 1200 * Math.cos(thetaRad);
+                const outY = y - 1200 * Math.sin(thetaRad);
+                
+                svgContent += `<line x1="${cx}" y1="${y}" x2="${outX}" y2="${outY}" stroke="${colorRed}" stroke-width="${rayThickness}" stroke-dasharray="${dashPattern}" stroke-dashoffset="0" />`;
+                svgContent += `<line x1="${cx}" y1="${y}" x2="${outX}" y2="${outY}" stroke="${colorGreen}" stroke-width="${rayThickness}" stroke-dasharray="${dashPattern}" stroke-dashoffset="${-lambdaPx}" />`;
+                svgContent += `<line x1="${cx}" y1="${y}" x2="${outX}" y2="${outY}" stroke="${colorBlue}" stroke-width="${rayThickness}" stroke-dasharray="${dashPattern}" stroke-dashoffset="${-2 * lambdaPx}" />`;
+
+                // Outgoing Arrow
+                const outArrowDist = 350; 
+                const outArrowX = cx + outArrowDist * Math.cos(thetaRad);
+                const outArrowY = y - outArrowDist * Math.sin(thetaRad);
+                svgContent += `<polygon points="0,-8 16,0 0,8" fill="${arrowColor}" transform="translate(${outArrowX}, ${outArrowY}) rotate(${-thetaDeg})" opacity="0.9" />`;
+
+                // Horizontal dashed reference line
+                svgContent += `<line x1="${cx}" y1="${y}" x2="${cx + 200}" y2="${y}" stroke="#94a3b8" stroke-dasharray="4,6" stroke-width="2" opacity="0.6"/>`;
+
+                // Add perpendicular broken lines for the TOP ray (i === 0)
+                if (i === 0) {
+                    const maxK = Math.floor(1200 / lambdaPx);
+                    for (let k = 0; k <= maxK; k++) {
+                        const L = k * lambdaPx;
+                        const px = cx + L * Math.cos(thetaRad);
+                        const py = y - L * Math.sin(thetaRad);
+                        
+                        // Perpendicular vector
+                        const perpLen = 1500; 
+                        const dx_perp = -Math.sin(thetaRad);
+                        const dy_perp = -Math.cos(thetaRad); // Adjusted for inverted Y
+                        
+                        const p1x = px + perpLen * dx_perp;
+                        const p1y = py + perpLen * dy_perp;
+                        const p2x = px - perpLen * dx_perp;
+                        const p2y = py - perpLen * dy_perp;
+                        
+                        svgContent += `<line x1="${p1x}" y1="${p1y}" x2="${p2x}" y2="${p2y}" stroke="#475569" stroke-width="2" stroke-dasharray="6,4" opacity="0.6" clip-path="url(#rightSideClip)" />`;
+                    }
+                }
+            }
+
+            // 2. Draw Path Difference (Delta) on the lower ray if tilted up
+            if (thetaRad > 0.05) {
+                const bottomY = startY + slitSpacing;
+                // Distance along the lower ray to the first perpendicular line from the top ray
+                const pathDiffPx = slitSpacing * Math.sin(thetaRad);
+                
+                // Intersection point on the lower ray
+                const intersectX = cx + pathDiffPx * Math.cos(thetaRad);
+                const intersectY = bottomY - pathDiffPx * Math.sin(thetaRad);
+
+                // Offset the dimension line downwards/rightwards so it doesn't overlap the ray
+                const offsetDist = 25;
+                const offX = offsetDist * Math.sin(thetaRad);
+                const offY = offsetDist * Math.cos(thetaRad);
+
+                const d1x = cx + offX;
+                const d1y = bottomY + offY;
+                const d2x = intersectX + offX;
+                const d2y = intersectY + offY;
+
+                // Tick marks at the ends of the dimension line
+                const tickLen = 6;
+                const tx = tickLen * Math.sin(thetaRad);
+                const ty = tickLen * Math.cos(thetaRad);
+
+                svgContent += `
+                    <!-- Dimension Line -->
+                    <line x1="${d1x}" y1="${d1y}" x2="${d2x}" y2="${d2y}" stroke="#b45309" stroke-width="2" />
+                    <!-- Ticks -->
+                    <line x1="${cx + offX - tx}" y1="${bottomY + offY - ty}" x2="${cx + offX + tx}" y2="${bottomY + offY + ty}" stroke="#b45309" stroke-width="2" />
+                    <line x1="${intersectX + offX - tx}" y1="${intersectY + offY - ty}" x2="${intersectX + offX + tx}" y2="${intersectY + offY + ty}" stroke="#b45309" stroke-width="2" />
+                `;
+
+                // Delta Text
+                const midX = (d1x + d2x) / 2 + 15 * Math.sin(thetaRad);
+                const midY = (d1y + d2y) / 2 + 15 * Math.cos(thetaRad);
+                
+                svgContent += `<text x="${midX}" y="${midY}" font-family="sans-serif" font-size="22" font-weight="bold" fill="#b45309" text-anchor="middle" dominant-baseline="middle">Δ</text>`;
+            }
+
+            // 3. Draw Grating Barrier
+            const barrierColor = "#334155";
+            const barrierWidth = 20;
+            
+            svgContent += `<rect x="${cx - barrierWidth/2}" y="0" width="${barrierWidth}" height="${startY - slitWidth/2}" fill="${barrierColor}" />`;
+            for (let i = 0; i < N - 1; i++) {
+                const yTop = startY + i * slitSpacing + slitWidth/2;
+                const height = slitSpacing - slitWidth;
+                svgContent += `<rect x="${cx - barrierWidth/2}" y="${yTop}" width="${barrierWidth}" height="${height}" fill="${barrierColor}" />`;
+            }
+            const lastY = startY + (N - 1) * slitSpacing + slitWidth/2;
+            svgContent += `<rect x="${cx - barrierWidth/2}" y="${lastY}" width="${barrierWidth}" height="${600 - lastY}" fill="${barrierColor}" />`;
+
+            // 4. Draw 'd' (grating separation) label
+            const dLineX = cx - 50;
+            const y1 = startY;
+            const y2 = startY + slitSpacing;
+            
+            svgContent += `
+                <line x1="${dLineX}" y1="${y1}" x2="${dLineX}" y2="${y2}" stroke="#1e293b" stroke-width="3" />
+                <line x1="${dLineX - 8}" y1="${y1}" x2="${dLineX + 8}" y2="${y1}" stroke="#1e293b" stroke-width="3" />
+                <line x1="${dLineX - 8}" y1="${y2}" x2="${dLineX + 8}" y2="${y2}" stroke="#1e293b" stroke-width="3" />
+                <text x="${dLineX - 20}" y="${(y1 + y2) / 2 + 6}" font-family="sans-serif" font-size="22" font-style="italic" fill="#1e293b" text-anchor="end">d</text>
+            `;
+
+            gratingSvg.innerHTML = svgContent;
+        }
+
+        // --- Dragging Logic ---
+        let isDragging = false;
+
+        function handleDragStart(e) {
+            isDragging = true;
+            handleDragMove(e);
+        }
+
+        function handleDragEnd() {
+            isDragging = false;
+        }
+
+        function handleDragMove(e) {
+            if (!isDragging) return;
+            
+            let clientX, clientY;
+            if (e.touches && e.touches.length > 0) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const rect = diagramContainer.getBoundingClientRect();
+            // Map the actual screen coordinates to the SVG viewBox coordinates (1000x600)
+            const scaleX = 1000 / rect.width;
+            const scaleY = 600 / rect.height;
+            
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+
+            const dx = x - cx;
+            const dy = midY - y; // Inverted so UP is positive
+            
+            if (dx > 0) {
+                let angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                
+                // Magnetic Snapping feature for diagram drag
+                const rad = angle * Math.PI / 180;
+                const rawN = (d_nm * Math.sin(rad)) / lambda;
+                const roundedN = Math.round(rawN);
+                
+                if (Math.abs(rawN - roundedN) < 0.15) {
+                    const snapSinTheta = (roundedN * lambda) / d_nm;
+                    if (Math.abs(snapSinTheta) <= 1) {
+                        angle = Math.asin(snapSinTheta) * 180 / Math.PI;
+                    }
+                }
+
+                if (angle > 60) angle = 60;
+                if (angle < 0) angle = 0; // Prevent dragging into negative angles
+                
+                thetaSlider.value = angle;
+                updateSimulation();
+            }
+        }
+
+        diagramContainer.addEventListener('mousedown', handleDragStart);
+        window.addEventListener('mousemove', handleDragMove);
+        window.addEventListener('mouseup', handleDragEnd);
+
+        diagramContainer.addEventListener('touchstart', handleDragStart, {passive: false});
+        window.addEventListener('touchmove', handleDragMove, {passive: false});
+        window.addEventListener('touchend', handleDragEnd);
+
+        lambdaSlider.addEventListener('input', updateSimulation);
+        dSlider.addEventListener('input', updateSimulation);
+        thetaSlider.addEventListener('input', updateSimulation);
+
+        // Initial render
+        updateSimulation();
+    </script>
+
+
+</body></html>
